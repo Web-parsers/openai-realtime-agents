@@ -278,9 +278,9 @@ function App() {
     });
 
     // Send an initial 'hi' message to trigger the agent to greet the user
-    if (shouldTriggerResponse) {
-      sendSimulatedUserMessage('hi');
-    }
+    // if (shouldTriggerResponse) {
+    //   sendSimulatedUserMessage('hi');
+    // }
     return;
   }
 

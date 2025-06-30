@@ -316,4 +316,207 @@ export const getNextResponseFromSupervisor = tool({
     return { nextResponse: finalText as string };
   },
 });
+
+
+const apiPost = async <T>(url: string, payload: Record<string, unknown>): Promise<T> => {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    // You may want richer error handling / retries.
+    throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  }
+
+  return (await res.json()) as T;
+};
+
+// ====================================================================
+// JERKY‑EU BACKEND TOOLS
+// ====================================================================
+
+export const addToCart = tool({
+  name: "add_to_cart",
+  description: "Add selected product variant to cart (Shopify)",
+  parameters: {
+    type: "object",
+    properties: {
+      cart_id: {
+        type: "string",
+        description: "{cart_id}",
+      },
+      merchandise_id: {
+        type: "string",
+        description: "product‑variant id starting with gid://shopify/ProductVariant/…",
+      },
+      quantity: {
+        type: "number",
+        description: "how many items to add (defaults to 1)",
+      },
+    },
+    required: ["cart_id", "merchandise_id", "quantity"],
+    additionalProperties: false,
+  },
+  execute: async (input) => {
+    const { cart_id, merchandise_id, quantity } = input as {
+      cart_id: string;
+      merchandise_id: string;
+      quantity: number;
+    };
+
+    return await apiPost("https://bot-backend.webparsers.com/jerky-eu/cart/add", {
+      cart_id,
+      merchandise_id,
+      quantity,
+    });
+  },
+});
+
+// --------------------------------------------------------------------
+
+export const getCartState = tool({
+  name: "get_cart_state",
+  description: "Retrieve all items currently in the cart",
+  parameters: {
+    type: "object",
+    properties: {
+      cart_id: { type: "string", description: "{cart_id}" },
+    },
+    required: ["cart_id"],
+    additionalProperties: false,
+  },
+  execute: async (input) => {
+    const { cart_id } = input as { cart_id: string };
+
+    return await apiPost("https://bot-backend.webparsers.com/jerky-eu/cart/products", {
+      cart_id,
+    });
+  },
+});
+
+// --------------------------------------------------------------------
+
+export const productDetails = tool({
+  name: "product_details",
+  description: "Retrieve full information for a specific product (needs Shopify product ID)",
+  parameters: {
+    type: "object",
+    properties: {
+      shopify_id: {
+        type: "string",
+        description: "Shopify product ID – starts with gid://shopify/Product/",
+      },
+      user_country: { type: "string", description: "{country}" },
+    },
+    required: ["shopify_id", "user_country"],
+    additionalProperties: false,
+  },
+  execute: async (input) => {
+    const { shopify_id, user_country } = input as {
+      shopify_id: string;
+      user_country: string;
+    };
+
+    return await apiPost("https://bot-backend.webparsers.com/jerky-eu/products/details", {
+      shopify_id,
+      user_country,
+    });
+  },
+});
+
+// --------------------------------------------------------------------
+
+export const retrieveOrderDetails = tool({
+  name: "retrieve_order_details",
+  description: "Retrieve order/payment/delivery status for a specific order",
+  parameters: {
+    type: "object",
+    properties: {
+      order_name: {
+        type: "string",
+        description: "Order name in format \"JS-ddddd\"",
+      },
+      email: { type: "string", description: "User email associated with the order" },
+      include_delivery: {
+        type: "boolean",
+        description: "true ⇒ include parcel tracking info; false ⇒ order info only",
+      },
+    },
+    required: ["order_name", "email", "include_delivery"],
+    additionalProperties: false,
+  },
+  execute: async (input) => {
+    const { order_name, email, include_delivery } = input as {
+      order_name: string;
+      email: string;
+      include_delivery: boolean;
+    };
+
+    return await apiPost("https://bot-backend.webparsers.com/jerky-eu/order/summary", {
+      order_name,
+      email,
+      include_delivery,
+    });
+  },
+});
+
+// --------------------------------------------------------------------
+
+export const searchProducts = tool({
+  name: "search_products",
+  description: "Find jerky products that match the shopper's profile & filters",
+  parameters: {
+    type: "object",
+    properties: {
+      dietary_filter: { type: "string", description: "Dietary tags filter" },
+      product_preference: { type: "string", description: "Taste / purpose query" },
+      order: { type: "number", description: "N‑th recommendation (1,2,3…)" },
+      meat_filter: { type: "string", description: "Meat type filter" },
+      protein_filter: { type: "string", description: "Protein filter JSON ({\"gte\": 50}) etc." },
+      calorie_filter: { type: "string", description: "Calorie filter JSON" },
+      sugar_filter: { type: "string", description: "Sugar filter JSON" },
+      salt_filter: { type: "string", description: "Salt filter JSON" },
+      vendor_filter: { type: "string", description: "Preferred brand (vendor)" },
+      return_bundle: { type: "boolean", description: "true ⇒ recommend bundle" },
+      additional_tags_filter: { type: "string", description: "Extra tags to refine search" },
+      check_assortment: { type: "boolean", description: "true ⇒ just check assortment" },
+      user_country: { type: "string", description: "{country}" },
+    },
+    required: [
+      "dietary_filter",
+      "product_preference",
+      "meat_filter",
+      "return_bundle",
+      "additional_tags_filter",
+      "check_assortment",
+      "user_country",
+    ],
+    additionalProperties: false,
+  },
+  execute: async (input) => {
+    // All fields are sent straight through; backend expects snake_case keys.
+    return await apiPost("https://bot-backend.webparsers.com/jerky-eu/products/suggest", input as Record<string, unknown>);
+  },
+});
+
+// --------------------------------------------------------------------
+
+export const showCheckout = tool({
+  name: "show_checkout",
+  description: "Generate/return checkout link for the current cart",
+  parameters: {
+    type: "object",
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+  execute: async () => {
+    // If your backend actually needs something (e.g. cart_id),
+    // extend the parameters + payload accordingly.
+    return await apiPost("https://bot-backend.webparsers.com/jerky-eu/show_checkout", {});
+  },
+});
+
   
