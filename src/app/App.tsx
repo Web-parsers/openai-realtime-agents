@@ -240,6 +240,7 @@ function App() {
     setIsPTTUserSpeaking(false);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const sendSimulatedUserMessage = (text: string) => {
     const id = uuidv4().slice(0, 32);
     addTranscriptMessage(id, "user", text, true);
@@ -256,6 +257,7 @@ function App() {
     sendClientEvent({ type: 'response.create' }, '(simulated user text message)');
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const updateSession = (shouldTriggerResponse: boolean = false) => {
     // Reflect Push-to-Talk UI state by (de)activating server VAD on the
     // backend. The Realtime SDK supports live session updates via the
